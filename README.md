@@ -1,96 +1,54 @@
-# Financial Tracker Diagrams (PlantUML)
+# Sequence Diagram → Angular Mapping
 
-This directory contains UML diagrams for the Financial Tracker application in PlantUML format.
+This table maps the participants/objects shown in the sequence diagrams to the concrete Angular artifacts in this project: components, templates, services, methods, and routes.
 
-## Files
+| Sequence Object | Angular Element | File / Location | Key Methods / Bindings | Route / Template |
+|---|---:|---|---|---|
+| User (actor) | External actor (browser user) | n/a | Interacts via clicks, form submit, navigation | n/a |
+| AddTransaction (View) | Component (Controller for add form) | `src/app/add-transaction/add-transaction.ts` | `onSubmit()` — validates form, calls `TransactionService.add(...)` | Template: `src/app/add-transaction/add-transaction.html` — form inputs (date, description, amount, type); Route: `/add` |
+| AddTransaction (UI) | Reactive Form | within `AddTransaction` component | `transactionForm: FormGroup` — validators: required fields, amount >= 0 | Form controls bound in template via `formControlName` |
+| TransactionList (View / Controller) | Component (Controller for list) | `src/app/transaction-list/transaction-list.ts` | `ngOnInit()` → `loadTransactions()` → calls `TransactionService.getAll()`; `deleteTransaction(id)` → calls `TransactionService.delete(id)` | Template: `src/app/transaction-list/transaction-list.html`; Route: `/transactions` |
+| TransactionService (Model) | Injectable Service (single source of truth) | `src/app/services/transaction.service.ts` | `getAll(): Transaction[]` — returns sorted array; `add(tx: Omit<Transaction,'id'>): Transaction` — generates id, pushes and saves; `delete(id: number): boolean` — removes and saves | Persists to localStorage in `save()` / `load()` methods |
+| LocalStorage (persistence) | Browser `localStorage` API | not in repo (browser API) | `localStorage.getItem('ft_transactions_v1')` and `localStorage.setItem('ft_transactions_v1', json)` used by `TransactionService` | Storage key: `ft_transactions_v1` |
+| Router | Angular Router | `src/app/app.routes.ts` | Routes wired to components: `{ path: 'transactions', component: TransactionList }`, `{ path: 'add', component: AddTransaction }` | Used by components to `navigate(['/transactions'])` after add |
 
-### Use Case Diagram
-- **`use-case-diagram.puml`** — Shows the main actor (User), primary use cases (View, Add, Delete Transactions), and their relationship to the Persist use case.
+## Message → Implementation Mapping (from sequence diagrams)
 
-### Sequence Diagrams
-- **`sequence-view-transactions.puml`** — Shows the complete flow when a user navigates to view the transaction list.
-- **`sequence-add-transaction.puml`** — Shows the flow when a user submits a new transaction (includes form validation and navigation).
-- **`sequence-delete-transaction.puml`** — Shows the flow when a user deletes a transaction and the list refreshes.
+- `submit(form)` (User → AddTransaction UI)
+  - Implemented as user clicking the form submit button bound to `onSubmit()` in `AddTransaction` component.
+  - Template: submit button calls `(ngSubmit)="onSubmit()"`.
 
-## How to View / Render
+- `onSubmit()` → `TransactionService.add(tx)`
+  - `AddTransaction.onSubmit()` validates and packages form values and calls `TransactionService.add(...)`.
+  - Code: `this.txService.add({ date, description, amount, type });`
 
-### Option 1: Online PlantUML Editor
-1. Go to [PlantUML Editor](https://www.plantuml.com/plantuml/uml/)
-2. Copy/paste the `.puml` file content
-3. Click "Submit" or press Ctrl+Enter to render
-4. Export as PNG, SVG, or PDF from the menu
+- `getAll()` (TransactionList → TransactionService)
+  - `TransactionList.loadTransactions()` calls `this.txService.getAll()` to fetch current transactions.
 
-### Option 2: VS Code Extension
-1. Install "PlantUML" extension by jebbs.plantuml
-2. Open the `.puml` file
-3. Press `Alt+D` to preview
-4. Right-click → "Export Current Diagram" to save as PNG/SVG
+- `delete(id)` (TransactionList → TransactionService)
+  - `TransactionList.deleteTransaction(id)` calls `this.txService.delete(id)` and reloads list on success.
 
-### Option 3: Command Line (requires Java)
-```bash
-# Download plantuml.jar from https://plantuml.com/download
-java -jar plantuml.jar use-case-diagram.puml
-java -jar plantuml.jar sequence-view-transactions.puml
-java -jar plantuml.jar sequence-add-transaction.puml
-java -jar plantuml.jar sequence-delete-transaction.puml
-```
+- `localStorage.setItem(...)` / `getItem(...)`
+  - Implemented inside `TransactionService.save()` and `TransactionService.load()`.
 
-## Architecture Overview
+## Files of interest
 
-The Financial Tracker follows **MVC (Model-View-Controller)** pattern:
+- Components
+  - `src/app/transaction-list/transaction-list.ts` (+ template and css)
+  - `src/app/add-transaction/add-transaction.ts` (+ template and css)
 
-- **Models** (`src/app/models/`) — Data structures (Transaction interface)
-- **Controllers** (`src/app/transaction-list/`, `src/app/add-transaction/`) — Angular Components managing logic and state
-- **Views** (`.html` templates) — UI templates rendered by components
-- **Services** (`src/app/services/`) — Business logic layer (TransactionService with localStorage persistence)
+- Service
+  - `src/app/services/transaction.service.ts`
 
-## Diagram Descriptions
+- Model
+  - `src/app/models/transaction.ts` (interface definition)
 
-### Use Case Diagram
-- **Actor**: User (primary actor)
-- **Use Cases**:
-  - View Transactions: Display all stored transactions
-  - Add Transaction: Create new transaction with form
-  - Delete Transaction: Remove a transaction
-  - Persist to LocalStorage: Common use case for storage operations
-- **Relationships**: Add/Delete/View all include persistence
+- Routing
+  - `src/app/app.routes.ts`
 
-### Sequence: View Transactions
-**Participants**: User → View (Template) → Controller (TransactionList) → Model (TransactionService) → LocalStorage
+## Quick developer notes
 
-**Flow**:
-1. User navigates to /transactions
-2. Component's ngOnInit() is called
-3. Controller calls TransactionService.getAll()
-4. Service retrieves transactions from localStorage
-5. Controller updates component state
-6. View re-renders the Material table
+- The components act as controllers (handling UI events and calling the service). The service encapsulates persistence and business logic (ID generation, sorting).
+- If you add more sequence participants (e.g., Bank API), implement a new service (e.g., `BankService`) and add appropriate async calls from components/services.
+- Consider adding confirmation/undo patterns on delete in the `TransactionList` component for better UX.
 
-### Sequence: Add Transaction
-**Participants**: User → View (Form) → Controller (AddTransaction) → Model (TransactionService) → LocalStorage → Router
-
-**Flow**:
-1. User navigates to /add and fills the form
-2. User submits the form
-3. Controller validates the form
-4. If valid, controller calls TransactionService.add()
-5. Service generates auto-incremented ID and saves to localStorage
-6. Router navigates back to /transactions
-7. TransactionList component loads and displays updated list
-
-### Sequence: Delete Transaction
-**Participants**: User → View (Table) → Controller (TransactionList) → Model (TransactionService) → LocalStorage
-
-**Flow**:
-1. User clicks the delete button on a transaction row
-2. Controller calls TransactionService.delete(id)
-3. Service finds and removes the transaction, saves to localStorage
-4. Controller reloads the transaction list by calling getAll()
-5. View re-renders with updated data
-
-## Notes
-
-- All data is persisted to browser's `localStorage` under key `ft_transactions_v1`
-- IDs are auto-incremented based on existing transactions
-- Sorting is done by date (newest first) in the service layer
-- Material Design components are used for UI (Angular Material)
