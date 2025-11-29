@@ -1,215 +1,166 @@
-# Financial Tracker - Project Report
+# Financial Tracker — Code Explanation (High level)
 
-## 1. System Description
-
-**Financial Tracker** is an Angular-based web application designed to help users manage personal financial transactions. The system provides a clean, intuitive interface for recording income and expense transactions with automatic persistence to browser storage.
-
-### Key Features
-- Add transactions with date, description, amount, and type (income/expense)
-- View all transactions in a sortable table format
-- Delete transactions with confirmation
-- Persistent storage (transactions saved automatically to localStorage)
-- Currency display in Indonesian Rupiah (IDR)
-- Responsive Material Design interface
-
-### Technology Stack
-- **Framework**: Angular (v20.3.8) with standalone components
-- **UI Library**: Angular Material
-- **Language**: TypeScript
-- **Storage**: Browser localStorage
-- **Localization**: Indonesian locale
+This document explains how the application code works focusing on files you added: models, components, services, and the main app entry. It avoids deep Angular internals, focusing instead on the design, responsibilities, and how data flows between parts.
 
 ---
 
-## 2. Component Structure
+## 1) Overview
 
-### Application Architecture
+Financial Tracker is a small Angular app that allows users to record financial transactions (income and expenses) and view them in a table. The project stores transactions in browser `localStorage` for persistence and uses an IDR currency display.
 
-```
-Financial Tracker Application
-├── AppComponent (src/app/app.ts)
-│   ├── Toolbar (Navigation & Branding)
-│   └── Router Outlet
-│       ├── TransactionList Component
-│       └── AddTransaction Component
-├── TransactionService (src/app/services/transaction.service.ts)
-│   └── localStorage Management (Key: ft_transactions_v1)
-└── Transaction Model (src/app/models/transaction.ts)
-```
-
-### Core Components
-
-#### **TransactionList Component** (`src/app/transaction-list/`)
-- **Purpose**: Display all transactions in a Material table
-- **Features**:
-  - Shows transaction date, description, amount, and type
-  - Currency formatted as IDR
-  - Delete button for each transaction
-  - Sorted by date (newest first)
-- **Methods**:
-  - `ngOnInit()`: Loads transactions on component initialization
-  - `loadTransactions()`: Fetches all transactions from service
-  - `deleteTransaction(id)`: Removes a transaction
-
-#### **AddTransaction Component** (`src/app/add-transaction/`)
-- **Purpose**: Form for creating new transactions
-- **Features**:
-  - Reactive form with validation
-  - Date picker input
-  - Description text field
-  - Amount input with currency
-  - Type dropdown (Income/Expense)
-  - Submit button
-- **Methods**:
-  - `onSubmit()`: Adds transaction and navigates back to list
-
-#### **TransactionService** (`src/app/services/transaction.service.ts`)
-- **Purpose**: Handle CRUD operations and persistence
-- **Methods**:
-  - `load()`: Fetch transactions from localStorage
-  - `save()`: Persist transactions to localStorage
-  - `getAll()`: Return all transactions
-  - `add(transaction)`: Create new transaction
-  - `delete(id)`: Remove transaction
-- **Storage**: localStorage key `ft_transactions_v1`
-
-#### **AppComponent** (`src/app/app.ts`)
-- **Purpose**: Main application container
-- **Features**:
-  - Material toolbar with navigation buttons
-  - Router outlet for component switching
-  - Links to Add Transaction and View Transactions
+Key parts:
+- Model: `Transaction` — defines the shape of a transaction object used across the app.
+- Service: `TransactionService` — in-memory repository with localStorage persistence.
+- Components: `AddTransaction` (form) and `TransactionList` (table).
+- App: `App` component handles top-level UI (toolbar, routing) and locale registration.
 
 ---
 
-## 3. How to Run the Application
+## 2) Data Model
 
-### Prerequisites
-```
-Node.js 18.x or higher
-npm 9.x or higher
-Angular CLI 20.3.8
-```
+`src/app/models/transaction.ts`
 
-### Installation Steps
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/MarchianTz/financial_tracker.git
-   cd financial_tracker
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**
-   ```bash
-   npm start
-   ```
-   Or alternatively:
-   ```bash
-   ng serve
-   ```
-
-4. **Open in browser**
-   - Navigate to `http://localhost:4200/`
-   - The app loads automatically and hot-reloads on file changes
-
-### Application Navigation
-- **Home/Transactions**: View all saved transactions
-- **Add Transaction**: Navigate to form to add new transaction
-- **Delete**: Click delete icon on any transaction to remove it
-
----
-
-## 4. Proof of Running Results (Screenshots)
-
-### Screenshot 1: Transactions List View
-![Transactions List](screenshots/transactions-list.png)
-- Material table displaying all transactions
-- Each row shows: Date, Description, Amount (IDR), Type
-- Delete icon button on each row
-- Sorted by date (newest first)
-
-### Screenshot 2: Add Transaction Form
-![Add Transaction Form](screenshots/add-transaction-form.png)
-- Form fields: Date Picker, Description, Amount, Type (dropdown)
-- Submit button to save transaction
-- Form validation prevents empty fields
-- Cancel/Back navigation option
-
-### Screenshot 3: Application Toolbar
-![App Toolbar](screenshots/app-toolbar.png)
-- Header with "Financial Tracker" branding
-- Navigation buttons: "View Transactions" and "Add Transaction"
-- Material Design styling with responsive layout
-
-### Screenshot 4: Transaction Persistence
-![Transaction Data Persisted](screenshots/transaction-persisted.png)
-- Demonstrates data persisting after page refresh
-- Shows transactions stored in browser localStorage
-- Example transactions in IDR currency format
-
----
-
-## 5. Key Technical Details
-
-### Data Model
 ```typescript
-interface Transaction {
+export interface Transaction {
   id: number;
-  date: string;
+  date: Date;
   description: string;
   amount: number;
   type: 'income' | 'expense';
 }
 ```
 
-### Routing Configuration (`src/app/app.routes.ts`)
-```
-/transactions → TransactionList Component
-/add → AddTransaction Component
-(default) → redirects to /transactions
-```
+- `id`: A unique numeric identifier assigned when a transaction is added.
+- `date`: The date of the transaction (stored as a string / Date depending on serialization; the Service uses JSON serialization when saving to `localStorage`).
+- `description`: A short description or label for the transaction.
+- `amount`: Numeric value of the transaction (positive; sign not encoded — the `type` indicates whether it's income or expense).
+- `type`: Either `income` or `expense` used for UI classification and formatting.
 
-### Locale Configuration
-Indonesian locale registered in `src/app/app.ts` for proper IDR currency formatting.
+Note: The interface sets expectations for components and services about what fields exist and their types.
 
 ---
 
-## 6. Build & Deployment
+## 3) Transaction Service
 
-### Build for Production
+`src/app/services/transaction.service.ts`
+
+Role: The service is the central place for all transaction data operations. It manages an in-memory array and serializes the state to `localStorage`.
+
+Important behaviors:
+- On construction the service calls `load()` to read stored transactions from `localStorage` using the `ft_transactions_v1` key; if none are found, it initializes an empty list and saves it.
+- `getAll()`: Returns a copy of the transactions sorted by date (newest first), ensuring screens show a fresh version while not exposing the internal array directly.
+- `add(transaction: Omit<Transaction, 'id'>)`: Adds a new transaction. Generates a next-id by scanning existing IDs (`reduce`) and increments by 1, then pushes to internal array and persists via `save()`. It returns the new created transaction (with id).
+- `delete(id: number)`: Removes the transaction with the matching id; if found, it splices it out, persists, and returns `true`. Otherwise returns `false`.
+- `save()`/`load()`: Wrap storage calls in `try/catch` to fail gracefully if `localStorage` is restricted.
+
+Why it's structured this way:
+- Local `transactions` array provides a single source-of-truth in memory.
+- `localStorage` persistence is simple and fits the use case for a small, offline-capable application.
+
+Possible edge cases or considerations:
+- IDs are not globally unique across sessions if the `localStorage` data is cleared. This is acceptable here because the dataset is local.
+- You may consider using a GUID or an external server for a shared application if needed.
+
+---
+
+## 4) Add Transaction Component
+
+`src/app/add-transaction/add-transaction.ts`
+
+Role: Provides a small, validated UI to add new transactions.
+
+Important behaviors:
+- The component initializes a reactive form with fields: `date`, `description`, `amount`, and `type`. Validation includes `required` and `min` for the amount.
+- `onSubmit()`: When the form is valid, grabs form values and calls `TransactionService.add(...)` with the data (excluding the `id` which is generated by the service), then navigates back to the transactions list using the router.
+
+Design considerations:
+- Form validation improves data integrity.
+- The component does not contain persistence logic — that is in `TransactionService`, keeping separation of concerns.
+
+---
+
+## 5) Transaction List Component
+
+`src/app/transaction-list/transaction-list.ts`
+
+Role: Displays transactions and provides delete operations.
+
+Important behaviors:
+- On initialization (`ngOnInit`), calls `loadTransactions()` which gets a fresh sorted list from `TransactionService.getAll()` and stores it into the `transactions` field.
+- `displayedColumns` controls which fields appear in the UI table (Date, Description, Amount, Type, Actions).
+- `deleteTransaction(id)` calls `TransactionService.delete(id)` and then refreshes the dataset by calling `loadTransactions()` if the deletion succeeded.
+
+Design considerations:
+- The component does not manipulate `localStorage` directly; the service handles persistence.
+- The table shows the newest transactions first so users see the most recent activity.
+
+---
+
+## 6) App Component & Routing
+
+`src/app/app.ts` — App entry point
+
+- Registers the Indonesian (`id`) locale via `registerLocaleData(localeId)` for proper currency and date formatting.
+- Uses a toolbar and a `RouterOutlet` to switch between `TransactionList` and `AddTransaction` components. The code does not embed the route logic; the separate `app.routes.ts` handles mapping.
+
+`src/app/app.routes.ts` — Routing (declarative)
+
+- Default route redirects to `/transactions`.
+- `/transactions` → `TransactionList`.
+- `/add` → `AddTransaction`.
+
+This keeps navigation small and explicit.
+
+---
+
+## 7) Typical data flow examples (plain steps)
+
+Add a transaction (user flow):
+1. User opens Add Transaction form.
+2. User fills out date, description, amount, and type, and submits the form.
+3. The `AddTransaction` component validates the data and calls `TransactionService.add({date, description, amount, type})`.
+4. The `TransactionService` generates an `id`, pushes the entry into the internal transactions array, and calls `save()` to persist the array to `localStorage`.
+5. The `AddTransaction` component navigates back to the list (`/transactions`).
+6. `TransactionList` retrieves the newest list via `getAll()` and renders the updated data.
+
+Delete a transaction (user flow):
+1. User clicks the Delete button on a row in the transactions table.
+2. The `TransactionList` component calls `TransactionService.delete(id)`.
+3. The service removes the entry from the in-memory array, calls `save()` to persist changes, and returns `true` to `TransactionList`.
+4. `TransactionList` refreshes the list via `getAll()`, updating the UI.
+
+---
+
+## 8) Storage format & behavior
+
+- Key: `ft_transactions_v1` in `localStorage`.
+- The value is a JSON string of the transactions array. When the app loads, `TransactionService.load()` parses it back into typed objects.
+- Sorting: The Service returns transactions sorted by date descending (newest first).
+- On first run, an empty array is persisted; subsequent runs load existing data.
+
+---
+
+## 9) Safety & Improvements (Suggestions)
+
+If you want to improve the app without changing the user-facing behavior too much:
+- Add edit functionality, which would require a small edit flow and additional UI on `AddTransaction` or a dedicated Edit component.
+- Add confirmation for delete operations to avoid accidents.
+- Add server-side sync or export/import (CSV) to back up data and share across devices.
+- Add currency/locale selection if you want to support different locales beyond IDR.
+- Consider stronger ID generation if the dataset might be shared or exported — e.g., UUIDs.
+
+---
+
+## 10) How to run the app (quick)
+
 ```bash
-ng build
+npm install
+npm start
+# open http://localhost:4200
 ```
-- Outputs optimized build to `dist/` directory
-- Ready for deployment to static hosting
-
-### Run Tests
-```bash
-npm test
-```
-- Executes unit tests using Karma
 
 ---
 
-## Conclusion
+If you'd like, I can now also generate a concise single-page version of this explanation to add under `src/app/` or as a note in `README.md` so it's visible in the repo. Would you like me to also commit these changes and optionally link the doc from the README?  
 
-The Financial Tracker application successfully delivers a functional, user-friendly solution for personal finance management. The implementation demonstrates:
-- ✅ Clean component-based architecture
-- ✅ Persistent data storage with localStorage
-- ✅ Material Design UI principles
-- ✅ TypeScript type safety
-- ✅ Responsive and intuitive user interface
-- ✅ Indonesian locale and IDR currency support
-
-The application is production-ready and can be extended with additional features such as transaction editing, CSV export, and advanced filtering.
-
----
-
-**Generated**: November 15, 2025  
-**Project**: Financial Tracker  
-**Version**: 1.0
+(End of explanation)
