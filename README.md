@@ -410,97 +410,36 @@ service cloud.firestore {
 
 ```plantuml
 @startuml UML Component Mapping
-skinparam package {
+skinparam component {
     BackgroundColor #LightBlue
     BorderColor #000000
 }
 
 package "Presentation Layer (View)" as View {
-    [TransactionListComponent] as ListComp
-    note right of ListComp
-        + transactions: Transaction[]
-        + displayedColumns: string[]
-        + ngOnInit(): void
-        + loadTransactions(): void
-        + editTransaction(id: string): void
-        + deleteTransaction(id: string): void
-    end note
-
-    [AddTransactionComponent] as AddComp
-    note right of AddComp
-        + transactionForm: FormGroup
-        + isEditing: boolean
-        + editingId: string | null
-        + ngOnInit(): void
-        + onSubmit(): void
-    end note
+    component [TransactionListComponent] as ListComp
+    component [AddTransactionComponent] as AddComp
 }
 
 package "Business Logic Layer (Controller/Service)" as Controller {
-    [TransactionService] as TxService
-    note right of TxService
-        - firestore: AngularFirestore
-        - auth: AngularFireAuth
-        + getAllTransactions(): Observable<Transaction[]>
-        + addTransaction(tx: Transaction): Promise<void>
-        + updateTransaction(id: string, tx: Transaction): Promise<void>
-        + deleteTransaction(id: string): Promise<void>
-        + getTransactionById(id: string): Observable<Transaction>
-    end note
-
-    [AuthService] as AuthSvc
-    note right of AuthSvc
-        - auth: AngularFireAuth
-        + login(email: string, password: string): Promise<void>
-        + logout(): Promise<void>
-        + getCurrentUser(): Observable<User>
-    end note
+    component [TransactionService] as TxService
+    component [AuthService] as AuthSvc
 }
 
 package "Data Layer (Model)" as Model {
-    class Transaction {
-        + id: string
-        + userId: string
-        + date: Date
-        + description: string
-        + amount: number
-        + type: 'income' | 'expense'
-        + category?: string
-        + createdAt: Date
-        + updatedAt: Date
-    }
+    component [Transaction] as Transaction
 }
 
 package "Routing Layer" as Routing {
-    [AppRoutingModule]
-    note right
-        + routes: Routes
-        - canActivate: AuthGuard
-    end note
+    component [AppRoutingModule] as AppRouting
 }
 
 package "External Services" as External {
-    database Firestore {
-        collections:
-        - users
-        - transactions
-        - categories
-    }
-
-    [Firebase Auth] as FirebaseAuth
-    note right of FirebaseAuth
-        + Authentication
-        + User Management
-    end note
+    component [Firestore] as Firestore
+    component [Firebase Auth] as FirebaseAuth
 }
 
 package "Angular Framework" as Framework {
-    [AngularFire]
-    note right
-        + AngularFireModule
-        + AngularFirestoreModule
-        + AngularFireAuthModule
-    end note
+    component [AngularFire] as AngularFire
 }
 
 ' Relationships
@@ -510,9 +449,96 @@ TxService --> Transaction : manages
 TxService --> Firestore : persists to
 TxService --> FirebaseAuth : authenticates
 AuthSvc --> FirebaseAuth : manages auth
-Routing --> AuthSvc : guards routes
-Framework --> Firestore : connects
-Framework --> FirebaseAuth : connects
+AppRouting --> AuthSvc : guards routes
+AngularFire --> Firestore : connects
+AngularFire --> FirebaseAuth : connects
+
+note as ListCompNote
+    TransactionListComponent
+    + transactions: Transaction[]
+    + displayedColumns: string[]
+    + ngOnInit(): void
+    + loadTransactions(): void
+    + editTransaction(id: string): void
+    + deleteTransaction(id: string): void
+end note
+ListComp .. ListCompNote
+
+note as AddCompNote
+    AddTransactionComponent
+    + transactionForm: FormGroup
+    + isEditing: boolean
+    + editingId: string | null
+    + ngOnInit(): void
+    + onSubmit(): void
+end note
+AddComp .. AddCompNote
+
+note as TxServiceNote
+    TransactionService
+    - firestore: AngularFirestore
+    - auth: AngularFireAuth
+    + getAllTransactions(): Observable<Transaction[]>
+    + addTransaction(tx: Transaction): Promise<void>
+    + updateTransaction(id: string, tx: Transaction): Promise<void>
+    + deleteTransaction(id: string): Promise<void>
+    + getTransactionById(id: string): Observable<Transaction>
+end note
+TxService .. TxServiceNote
+
+note as AuthSvcNote
+    AuthService
+    - auth: AngularFireAuth
+    + login(email: string, password: string): Promise<void>
+    + logout(): Promise<void>
+    + getCurrentUser(): Observable<User>
+end note
+AuthSvc .. AuthSvcNote
+
+note as TransactionNote
+    Transaction Model
+    + id: string
+    + userId: string
+    + date: Date
+    + description: string
+    + amount: number
+    + type: 'income' | 'expense'
+    + category?: string
+    + createdAt: Date
+    + updatedAt: Date
+end note
+Transaction .. TransactionNote
+
+note as RoutingNote
+    AppRoutingModule
+    + routes: Routes
+    - canActivate: AuthGuard
+end note
+AppRouting .. RoutingNote
+
+note as FirestoreNote
+    Firestore Database
+    collections:
+    - users
+    - transactions
+    - categories
+end note
+Firestore .. FirestoreNote
+
+note as FirebaseAuthNote
+    Firebase Auth
+    + Authentication
+    + User Management
+end note
+FirebaseAuth .. FirebaseAuthNote
+
+note as AngularFireNote
+    AngularFire
+    + AngularFireModule
+    + AngularFirestoreModule
+    + AngularFireAuthModule
+end note
+AngularFire .. AngularFireNote
 @enduml
 ```
 
@@ -2360,11 +2386,3 @@ Week 3: CRUD Implementation
 Week 4: UI/UX Enhancement
 Week 5: Testing & Bug Fixes
 Week 6: Documentation & Finalization
-```
-
----
-
-**Depok, January 2026**
-
-**Student**
-Erick Marchian
