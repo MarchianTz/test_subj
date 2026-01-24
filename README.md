@@ -153,7 +153,7 @@ Based on problem identification, the application must have the following functio
 
 ## System Design
 
-### Use Case Diagram
+### 1. Use Case Diagram
 
 ```plantuml
 @startuml Use Case Diagram - Financial Tracker
@@ -185,8 +185,9 @@ rectangle "Financial Tracker Application" as system {
     }
     
     rectangle "Data Management" as data {
-        usecase "Save to LocalStorage" as save_data
-        usecase "Load from LocalStorage" as load_data
+        usecase "Save to Firestore" as save_data
+        usecase "Load from Firestore" as load_data
+        usecase "Sync Data" as sync_data
     }
 }
 
@@ -202,8 +203,760 @@ view_list --> load_data : include
 add_transaction --> save_data : include
 edit_transaction --> save_data : include
 delete_transaction --> save_data : include
+view_list --> sync_data : include
 @enduml
 ```
+
+### 2. Use Case Descriptions
+
+#### Primary Actor: User
+
+**Use Case: View Transaction List**
+- **Description**: User can view all their financial transactions in a sorted list
+- **Preconditions**: User is authenticated and has internet connection
+- **Postconditions**: Transaction list is displayed with real-time data from Firestore
+- **Main Flow**:
+  1. User opens the application
+  2. System loads transactions from Firestore
+  3. Transactions are displayed in descending date order
+  4. User can scroll through the list
+
+**Use Case: Add New Transaction**
+- **Description**: User can create a new income or expense transaction
+- **Preconditions**: User is authenticated
+- **Postconditions**: New transaction is saved to Firestore and appears in the list
+- **Main Flow**:
+  1. User clicks "Add Transaction" button
+  2. System navigates to add form
+  3. User fills transaction details (date, description, amount, type)
+  4. User submits the form
+  5. System validates and saves to Firestore
+  6. System redirects to transaction list
+
+**Use Case: Edit Transaction**
+- **Description**: User can modify existing transaction details
+- **Preconditions**: User is authenticated, transaction exists
+- **Postconditions**: Transaction is updated in Firestore
+- **Main Flow**:
+  1. User clicks edit icon on a transaction
+  2. System loads transaction data into edit form
+  3. User modifies transaction details
+  4. User submits changes
+  5. System validates and updates in Firestore
+
+**Use Case: Delete Transaction**
+- **Description**: User can remove a transaction from their records
+- **Preconditions**: User is authenticated, transaction exists
+- **Postconditions**: Transaction is permanently deleted from Firestore
+- **Main Flow**:
+  1. User clicks delete icon on a transaction
+  2. System shows confirmation dialog
+  3. User confirms deletion
+  4. System removes transaction from Firestore
+
+### 3. Sequence Diagram (Full MVC + Firestore)
+
+```plantuml
+@startuml Sequence Diagram - MVC with Firestore
+actor User
+participant "View\n(TransactionList)" as View
+participant "Controller\n(Component)" as Controller
+participant "Model\n(TransactionService)" as Service
+participant "Firestore" as Firestore
+database "Firebase\nAuth" as Auth
+
+== Authentication ==
+User -> Auth: Login Request
+Auth --> User: Authentication Token
+
+== View Transaction List ==
+User -> View: Open Application
+View -> Controller: ngOnInit()
+Controller -> Service: getAllTransactions()
+Service -> Firestore: collection('transactions').get()
+Firestore --> Service: QuerySnapshot
+Service -> Service: Map to Transaction[]
+Service --> Controller: Transaction[]
+Controller -> View: Update transactions
+View --> User: Display Transaction List
+
+== Add Transaction ==
+User -> View: Click "Add Transaction"
+View -> Controller: navigateToAdd()
+Controller -> View: Navigate to /add
+
+User -> View: Fill Form & Submit
+View -> Controller: onSubmit(formData)
+Controller -> Service: addTransaction(formData)
+Service -> Firestore: collection('transactions').add(data)
+Firestore --> Service: DocumentReference
+Service -> Service: Generate ID & Return Transaction
+Service --> Controller: New Transaction
+Controller -> View: navigateToList()
+View --> User: Show Updated List
+
+== Edit Transaction ==
+User -> View: Click Edit Icon
+View -> Controller: navigateToEdit(id)
+Controller -> View: Navigate to /edit/:id
+
+Controller -> Service: getTransactionById(id)
+Service -> Firestore: doc('transactions', id).get()
+Firestore --> Service: DocumentSnapshot
+Service -> Service: Map to Transaction
+Service --> Controller: Transaction Data
+Controller -> View: Pre-populate Form
+
+User -> View: Modify & Submit
+View -> Controller: onSubmit(formData, id)
+Controller -> Service: updateTransaction(id, formData)
+Service -> Firestore: doc('transactions', id).update(data)
+Firestore --> Service: Success
+Service --> Controller: Updated Transaction
+Controller -> View: navigateToList()
+
+== Delete Transaction ==
+User -> View: Click Delete Icon
+View -> Controller: confirmDelete(id)
+Controller -> View: Show Confirmation Dialog
+
+User -> View: Confirm Delete
+View -> Controller: deleteTransaction(id)
+Controller -> Service: deleteTransaction(id)
+Service -> Firestore: doc('transactions', id).delete()
+Firestore --> Service: Success
+Service --> Controller: Success
+Controller -> View: Refresh List
+@enduml
+```
+
+### 4. Model and Firestore Structure
+
+#### Transaction Model Structure
+
+```typescript
+export interface Transaction {
+    id: string;           // Firestore document ID
+    userId: string;       // User ID for multi-user support
+    date: Date;           // Transaction date
+    description: string;  // Transaction description
+    amount: number;       // Transaction amount
+    type: 'income' | 'expense'; // Transaction type
+    category?: string;    // Optional category
+    createdAt: Date;      // Creation timestamp
+    updatedAt: Date;      // Last update timestamp
+}
+```
+
+#### Firestore Database Structure
+
+```
+Firestore Database
+├── users (collection)
+│   └── {userId} (document)
+│       ├── email: string
+│       ├── displayName: string
+│       ├── createdAt: timestamp
+│       └── lastLogin: timestamp
+│
+├── transactions (collection)
+│   └── {transactionId} (document)
+│       ├── userId: string (reference to users)
+│       ├── date: timestamp
+│       ├── description: string
+│       ├── amount: number
+│       ├── type: string ('income' | 'expense')
+│       ├── category: string (optional)
+│       ├── createdAt: timestamp
+│       └── updatedAt: timestamp
+│
+└── categories (collection) - Future enhancement
+    └── {categoryId} (document)
+        ├── userId: string
+        ├── name: string
+        ├── color: string
+        └── createdAt: timestamp
+```
+
+#### Firestore Security Rules
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Users can only access their own transactions
+    match /transactions/{transactionId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Categories access
+    match /categories/{categoryId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+  }
+}
+```
+
+### 5. UML Mapping (Component, Service, Model, Routing, Firestore)
+
+```plantuml
+@startuml UML Component Mapping
+skinparam component {
+    BackgroundColor #LightBlue
+    BorderColor #000000
+}
+
+package "Presentation Layer (View)" {
+    component "TransactionListComponent" as ListComp {
+        + transactions: Transaction[]
+        + displayedColumns: string[]
+        + ngOnInit(): void
+        + loadTransactions(): void
+        + editTransaction(id: string): void
+        + deleteTransaction(id: string): void
+    }
+    
+    component "AddTransactionComponent" as AddComp {
+        + transactionForm: FormGroup
+        + isEditing: boolean
+        + editingId: string | null
+        + ngOnInit(): void
+        + onSubmit(): void
+    }
+}
+
+package "Business Logic Layer (Controller/Service)" {
+    component "TransactionService" as TxService {
+        - firestore: AngularFirestore
+        - auth: AngularFireAuth
+        + getAllTransactions(): Observable<Transaction[]>
+        + addTransaction(tx: Transaction): Promise<void>
+        + updateTransaction(id: string, tx: Transaction): Promise<void>
+        + deleteTransaction(id: string): Promise<void>
+        + getTransactionById(id: string): Observable<Transaction>
+    }
+    
+    component "AuthService" as AuthService {
+        - auth: AngularFireAuth
+        + login(email: string, password: string): Promise<void>
+        + logout(): Promise<void>
+        + getCurrentUser(): Observable<User>
+    }
+}
+
+package "Data Layer (Model)" {
+    class "Transaction" as Transaction {
+        + id: string
+        + userId: string
+        + date: Date
+        + description: string
+        + amount: number
+        + type: 'income' | 'expense'
+        + category?: string
+        + createdAt: Date
+        + updatedAt: Date
+    }
+}
+
+package "Routing Layer" {
+    component "AppRoutingModule" as Routing {
+        + routes: Routes
+        - canActivate: AuthGuard
+    }
+}
+
+package "External Services" {
+    database "Firestore" as Firestore {
+        collections:
+        - users
+        - transactions
+        - categories
+    }
+    
+    component "Firebase Auth" as FirebaseAuth {
+        + Authentication
+        + User Management
+    }
+}
+
+package "Angular Framework" {
+    component "AngularFire" as AngularFire {
+        + AngularFireModule
+        + AngularFirestoreModule
+        + AngularFireAuthModule
+    }
+}
+
+' Relationships
+ListComp --> TxService : uses
+AddComp --> TxService : uses
+TxService --> Transaction : manages
+TxService --> Firestore : persists to
+TxService --> FirebaseAuth : authenticates
+AuthService --> FirebaseAuth : manages auth
+Routing --> AuthService : guards routes
+AngularFire --> Firestore : connects
+AngularFire --> FirebaseAuth : connects
+@enduml
+```
+
+### 6. Model Implementations (Firestore)
+
+#### 6.1 Firebase Configuration
+
+```typescript
+// src/environments/environment.ts
+export const environment = {
+  production: false,
+  firebase: {
+    apiKey: "your-api-key",
+    authDomain: "your-project.firebaseapp.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "your-app-id"
+  }
+};
+
+// src/app/app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
+import { provideAuth, getAuth } from '@angular/fire/auth';
+import { provideFirestore, getFirestore } from '@angular/fire/firestore';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes),
+    provideFirebaseApp(() => initializeApp(environment.firebase)),
+    provideAuth(() => getAuth()),
+    provideFirestore(() => getFirestore())
+  ]
+};
+```
+
+#### 6.2 Firestore Service Implementation
+
+```typescript
+// src/app/services/transaction.service.ts
+import { Injectable } from '@angular/core';
+import { AngularFirestore, AngularFirestoreCollection, DocumentReference } from '@angular/fire/compat/firestore';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { Observable, map, switchMap, of } from 'rxjs';
+import { Transaction } from '../models/transaction.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TransactionService {
+  private transactionsCollection: AngularFirestoreCollection<Transaction>;
+  private userId: string | null = null;
+
+  constructor(
+    private firestore: AngularFirestore,
+    private auth: AngularFireAuth
+  ) {
+    this.auth.authState.subscribe(user => {
+      this.userId = user ? user.uid : null;
+      if (this.userId) {
+        this.transactionsCollection = this.firestore.collection('transactions', 
+          ref => ref.where('userId', '==', this.userId).orderBy('date', 'desc')
+        );
+      }
+    });
+  }
+
+  // Get all transactions for current user
+  getAllTransactions(): Observable<Transaction[]> {
+    if (!this.userId) return of([]);
+    
+    return this.transactionsCollection.valueChanges({ idField: 'id' });
+  }
+
+  // Add new transaction
+  async addTransaction(transaction: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<void> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    const now = new Date();
+    const newTransaction: Transaction = {
+      ...transaction,
+      userId: this.userId,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await this.transactionsCollection.add(newTransaction);
+  }
+
+  // Update existing transaction
+  async updateTransaction(id: string, transaction: Partial<Transaction>): Promise<void> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    const updateData = {
+      ...transaction,
+      updatedAt: new Date()
+    };
+
+    await this.transactionsCollection.doc(id).update(updateData);
+  }
+
+  // Delete transaction
+  async deleteTransaction(id: string): Promise<void> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    await this.transactionsCollection.doc(id).delete();
+  }
+
+  // Get single transaction by ID
+  getTransactionById(id: string): Observable<Transaction | undefined> {
+    if (!this.userId) return of(undefined);
+
+    return this.transactionsCollection.doc(id).valueChanges({ idField: 'id' });
+  }
+}
+```
+
+#### 6.3 Authentication Service
+
+```typescript
+// src/app/services/auth.service.ts
+import { Injectable } from '@angular/core';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { Observable } from 'rxjs';
+import { User } from 'firebase/auth';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  constructor(private auth: AngularFireAuth) {}
+
+  // Login with email and password
+  async login(email: string, password: string): Promise<void> {
+    await this.auth.signInWithEmailAndPassword(email, password);
+  }
+
+  // Register new user
+  async register(email: string, password: string): Promise<void> {
+    await this.auth.createUserWithEmailAndPassword(email, password);
+  }
+
+  // Logout
+  async logout(): Promise<void> {
+    await this.auth.signOut();
+  }
+
+  // Get current user observable
+  getCurrentUser(): Observable<User | null> {
+    return this.auth.authState;
+  }
+
+  // Get user ID
+  getUserId(): string | null {
+    return this.auth.currentUser?.then(user => user?.uid || null) || null;
+  }
+}
+```
+
+#### 6.4 CRUD Operations with Firestore
+
+```typescript
+// Enhanced CRUD operations in TransactionService
+export class TransactionService {
+  // ... existing code ...
+
+  // Create - Add new transaction
+  async createTransaction(transactionData: CreateTransactionDto): Promise<string> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    const transaction: Transaction = {
+      ...transactionData,
+      userId: this.userId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const docRef = await this.transactionsCollection.add(transaction);
+    return docRef.id;
+  }
+
+  // Read - Get transactions with filtering
+  getTransactionsByDateRange(startDate: Date, endDate: Date): Observable<Transaction[]> {
+    if (!this.userId) return of([]);
+
+    return this.firestore.collection('transactions', ref => 
+      ref.where('userId', '==', this.userId)
+         .where('date', '>=', startDate)
+         .where('date', '<=', endDate)
+         .orderBy('date', 'desc')
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Read - Get transactions by type
+  getTransactionsByType(type: 'income' | 'expense'): Observable<Transaction[]> {
+    if (!this.userId) return of([]);
+
+    return this.firestore.collection('transactions', ref =>
+      ref.where('userId', '==', this.userId)
+         .where('type', '==', type)
+         .orderBy('date', 'desc')
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Update - Partial update
+  async updateTransactionFields(id: string, updates: Partial<Transaction>): Promise<void> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    await this.transactionsCollection.doc(id).update({
+      ...updates,
+      updatedAt: new Date()
+    });
+  }
+
+  // Delete - Soft delete (mark as deleted)
+  async softDeleteTransaction(id: string): Promise<void> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    await this.transactionsCollection.doc(id).update({
+      deleted: true,
+      updatedAt: new Date()
+    });
+  }
+
+  // Batch operations
+  async batchDeleteTransactions(ids: string[]): Promise<void> {
+    if (!this.userId) throw new Error('User not authenticated');
+
+    const batch = this.firestore.firestore.batch();
+    ids.forEach(id => {
+      const docRef = this.transactionsCollection.doc(id).ref;
+      batch.delete(docRef);
+    });
+    await batch.commit();
+  }
+}
+```
+
+### 7. Documentation: MVC Architecture, Firestore Structure, Configuration
+
+#### 7.1 MVC Architecture Overview
+
+The Financial Tracker application follows the **Model-View-Controller (MVC)** architectural pattern with Firebase/Firestore integration:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│      View       │    │   Controller    │    │      Model      │
+│                 │    │                 │    │                 │
+│ • TransactionList│    │ • Components    │    │ • Transaction   │
+│ • AddTransaction│    │ • Services      │    │ • User          │
+│ • Forms         │    │ • Routing       │    │ • Category      │
+│ • UI Components │    │ • Guards        │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │   Firestore     │
+                    │   Database      │
+                    │                 │
+                    │ • Collections   │
+                    │ • Documents     │
+                    │ • Security      │
+                    │ • Real-time     │
+                    └─────────────────┘
+```
+
+**View Layer (Presentation)**:
+- Angular Components with Material Design
+- Reactive Forms for data input
+- Responsive UI components
+- Real-time data binding
+
+**Controller Layer (Business Logic)**:
+- Angular Services for data management
+- Authentication guards
+- Route protection
+- Business rule validation
+
+**Model Layer (Data)**:
+- TypeScript interfaces
+- Data validation
+- Firestore document mapping
+- Observable data streams
+
+#### 7.2 Firestore Database Structure
+
+**Collections Hierarchy**:
+```
+financial-tracker-db
+├── users/
+│   ├── {userId}/
+│   │   ├── email: string
+│   │   ├── displayName: string
+│   │   ├── photoURL?: string
+│   │   ├── createdAt: timestamp
+│   │   └── lastLogin: timestamp
+│
+├── transactions/
+│   ├── {transactionId}/
+│   │   ├── userId: string (ref)
+│   │   ├── date: timestamp
+│   │   ├── description: string
+│   │   ├── amount: number
+│   │   ├── type: 'income'|'expense'
+│   │   ├── category?: string
+│   │   ├── tags?: string[]
+│   │   ├── receiptURL?: string
+│   │   ├── createdAt: timestamp
+│   │   └── updatedAt: timestamp
+│
+└── categories/ (Future)
+    ├── {categoryId}/
+    │   ├── userId: string (ref)
+    │   ├── name: string
+    │   ├── color: string
+    │   ├── icon: string
+    │   └── createdAt: timestamp
+```
+
+**Indexing Strategy**:
+- Composite index on `(userId, date)` for efficient querying
+- Single field indexes on frequently queried fields
+- Automatic indexing for simple queries
+
+#### 7.3 Firebase Configuration and Setup
+
+**Environment Configuration**:
+```typescript
+// environment.prod.ts
+export const environment = {
+  production: true,
+  firebase: {
+    apiKey: "AIzaSyC...",
+    authDomain: "financial-tracker-prod.firebaseapp.com",
+    projectId: "financial-tracker-prod",
+    storageBucket: "financial-tracker-prod.appspot.com",
+    messagingSenderId: "123456789012",
+    appId: "1:123456789012:web:abcdef123456"
+  },
+  firestore: {
+    enablePersistence: true,
+    synchronizeTabs: true
+  }
+};
+```
+
+**Angular Module Configuration**:
+```typescript
+// app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
+import { provideFirestore, getFirestore, connectFirestoreEmulator } from '@angular/fire/firestore';
+import { provideAuth, getAuth, connectAuthEmulator } from '@angular/fire/auth';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // Firebase providers
+    provideFirebaseApp(() => {
+      const app = initializeApp(environment.firebase);
+      if (!environment.production) {
+        // Connect to emulators in development
+        connectFirestoreEmulator(getFirestore(app), 'localhost', 8080);
+        connectAuthEmulator(getAuth(app), 'http://localhost:9099');
+      }
+      return app;
+    }),
+    provideFirestore(() => {
+      const firestore = getFirestore();
+      enableNetwork(firestore); // Enable network
+      return firestore;
+    }),
+    provideAuth(() => getAuth()),
+
+    // Other providers...
+  ]
+};
+```
+
+**Security Rules Configuration**:
+```javascript
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isOwnerOfDoc() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if isOwnerOfDoc();
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isOwnerOfDoc() && 
+        request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['description', 'amount', 'category', 'updatedAt']);
+    }
+    
+    // Categories collection
+    match /categories/{categoryId} {
+      allow read, write: if isOwnerOfDoc();
+      allow create: if isAuthenticated();
+    }
+  }
+}
+```
+
+**Deployment Configuration**:
+```json
+// firebase.json
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "dist/financial-tracker",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
+```
+
+This comprehensive documentation covers the complete MVC architecture with Firestore integration, providing a clear roadmap for implementing a cloud-based financial tracking application.
 
 ### Activity Diagram
 
@@ -1231,8 +1984,8 @@ rectangle "Aplikasi Financial Tracker" as system {
     rectangle "Manajemen Transaksi" as transaction {
         usecase "Melihat Daftar Transaksi" as view_list
         usecase "Menambah Transaksi Baru" as add_transaction
-        usecase "Mengedit Transaksi" as edit_transaction
-        usecase "Menghapus Transaksi" as delete_transaction
+        usecase "Edit Transaction" as edit_transaction
+        usecase "Delete Transaction" as delete_transaction
     }
     
     rectangle "Navigasi" as navigation {
@@ -1271,7 +2024,7 @@ start
 
 :Load transaksi dari localStorage;
 :Sort transaksi berdasarkan tanggal (terbaru dulu);
-:Display daftar transaksi dalam tabel;
+:Display transaction list in table;
 
 repeat
     :User memilih aksi;
@@ -1296,7 +2049,7 @@ repeat
         :Navigate ke /edit/:id;
         :Load data transaksi;
         :Pre-populate form;
-        :User mengubah data;
+        :User changes data;
         :Validate input;
         if (Valid?) then (yes)
             :Update transaksi;
@@ -1307,8 +2060,8 @@ repeat
         endif
         
     elseif (Hapus Transaksi?) then (yes)
-        :Konfirmasi penghapusan;
-        if (Dikonfirmasi?) then (yes)
+        :Confirm deletion;
+        if (Confirmed?) then (yes)
             :Hapus dari array;
             :Update localStorage;
             :Refresh daftar;
@@ -1903,18 +2656,18 @@ delete(id: number): boolean {
 ### 4.6 Enhanced Component Templates
 
 #### 4.6.1 Transaction List Template Features
-- **Responsive Table**: Material Design table dengan elevation
-- **Currency Formatting**: Indonesian Rupiah dengan pipe
+- **Responsive Table**: Material Design table with elevation
+- **Currency Formatting**: Indonesian Rupiah with pipe
 - **Color Coding**: Income (green), Expense (red)
-- **Horizontal Actions**: Edit dan Delete buttons sejajar
-- **RouterLink**: Navigation tanpa full page reload
+- **Horizontal Actions**: Edit and Delete buttons aligned
+- **RouterLink**: Navigation without full page reload
 
 #### 4.6.2 Add/Edit Form Template Features
 - **Dynamic Titles**: "Add Transaction" vs "Edit Transaction"
 - **Form Validation**: Real-time error messages
 - **Date Picker**: Material Design date picker
-- **Dropdown Selection**: Type selection dengan mat-select
-- **Button States**: Disabled saat form invalid
+- **Dropdown Selection**: Type selection with mat-select
+- **Button States**: Disabled when form invalid
 
 ### 4.7 Styling Implementation
 
@@ -1922,7 +2675,7 @@ delete(id: number): boolean {
 ```scss
 @use '@angular/material' as mat;
 
-// Custom theme dengan palette Indonesia
+// Custom theme with Indonesian palette
 $primary: mat.define-palette(mat.$indigo-palette);
 $accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
 $warn: mat.define-palette(mat.$red-palette);
@@ -1964,7 +2717,7 @@ $theme: mat.define-light-theme((
 }
 ```
 
-### 4.8 Build dan Deployment
+### 4.8 Build and Deployment
 
 #### 4.8.1 Development Workflow
 ```bash
@@ -1980,8 +2733,8 @@ ng build --configuration production
 
 #### 4.8.2 Build Optimization
 - **Tree Shaking**: Automatic unused code elimination
-- **Minification**: JavaScript dan CSS compression
-- **Bundle Splitting**: Separate chunks untuk optimal loading
+- **Minification**: JavaScript and CSS compression
+- **Bundle Splitting**: Separate chunks for optimal loading
 - **Source Maps**: Development debugging support
 
 #### 4.8.3 Performance Metrics
@@ -2201,7 +2954,7 @@ Aplikasi Financial Tracker yang dikembangkan dalam proyek ini telah memenuhi sem
 
 ---
 
-## LAMPIRAN
+## APPENDICES
 
 ### Lampiran A: Source Code Lengkap
 
@@ -2244,16 +2997,16 @@ ng serve
    - Isi form: Date, Description, Amount, Type
    - Klik "Add Transaction"
 
-2. **Mengedit Transaksi**:
-   - Klik ikon edit (✏️) pada transaksi yang ingin diubah
-   - Ubah data yang diperlukan
-   - Klik "Save Changes"
+2. **Edit Transaction**:
+   - Click the edit icon (✏️) on the transaction you want to change
+   - Modify the required data
+   - Click "Save Changes"
 
-3. **Menghapus Transaksi**:
-   - Klik ikon delete (🗑️) pada transaksi yang ingin dihapus
-   - Konfirmasi penghapusan
+3. **Delete Transaction**:
+   - Click the delete icon (🗑️) on the transaction you want to delete
+   - Confirm deletion
 
-### Lampiran D: Testing Results Detail
+### Appendix D: Testing Results Detail
 
 #### D.1 Unit Test Results
 ```
@@ -2271,7 +3024,7 @@ Lines        : 85.8%
 - **Total Bundle Size**: 1.05 MB
 - **JavaScript Execution Time**: 120ms
 
-### Lampiran E: Gantt Chart Proyek
+### Appendix E: Project Gantt Chart
 
 ```
 Week 1: Planning & Design
@@ -2284,9 +3037,9 @@ Week 6: Documentation & Finalization
 
 ---
 
-**Bandung, Januari 2026**
+**Bandung, January 2026**
 
-**Mahasiswa**
+**Student**
 
 Halimatus Z.
 NIM: 12345678
