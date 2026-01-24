@@ -789,7 +789,7 @@ The Financial Tracker application follows the **Model-View-Controller (MVC)** ar
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │      View       │    │   Controller    │    │      Model      │
 │                 │    │                 │    │                 │
-│ • TransactionList│    │ • Components    │    │ • Transaction   │
+│ •TransactionList│    │ • Components    │    │ • Transaction   │
 │ • AddTransaction│    │ • Services      │    │ • User          │
 │ • Forms         │    │ • Routing       │    │ • Category      │
 │ • UI Components │    │ • Guards        │    │                 │
