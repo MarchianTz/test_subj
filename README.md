@@ -2357,9 +2357,9 @@ Week 6: Documentation & Finalization
 
 ---
 
-**Bandung, January 2026**
+**Depok, January 2026**
 
 **Student**
 
-Halimatus Z.
+Erick Marchian
 NIM: 12345678
