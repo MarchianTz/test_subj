@@ -410,32 +410,35 @@ service cloud.firestore {
 
 ```plantuml
 @startuml UML Component Mapping
-skinparam component {
+skinparam package {
     BackgroundColor #LightBlue
     BorderColor #000000
 }
 
-package "Presentation Layer (View)" {
-    component "TransactionListComponent" as ListComp {
+package "Presentation Layer (View)" as View {
+    [TransactionListComponent] as ListComp
+    note right of ListComp
         + transactions: Transaction[]
         + displayedColumns: string[]
         + ngOnInit(): void
         + loadTransactions(): void
         + editTransaction(id: string): void
         + deleteTransaction(id: string): void
-    }
-    
-    component "AddTransactionComponent" as AddComp {
+    end note
+
+    [AddTransactionComponent] as AddComp
+    note right of AddComp
         + transactionForm: FormGroup
         + isEditing: boolean
         + editingId: string | null
         + ngOnInit(): void
         + onSubmit(): void
-    }
+    end note
 }
 
-package "Business Logic Layer (Controller/Service)" {
-    component "TransactionService" as TxService {
+package "Business Logic Layer (Controller/Service)" as Controller {
+    [TransactionService] as TxService
+    note right of TxService
         - firestore: AngularFirestore
         - auth: AngularFireAuth
         + getAllTransactions(): Observable<Transaction[]>
@@ -443,18 +446,19 @@ package "Business Logic Layer (Controller/Service)" {
         + updateTransaction(id: string, tx: Transaction): Promise<void>
         + deleteTransaction(id: string): Promise<void>
         + getTransactionById(id: string): Observable<Transaction>
-    }
-    
-    component "AuthService" as AuthService {
+    end note
+
+    [AuthService] as AuthSvc
+    note right of AuthSvc
         - auth: AngularFireAuth
         + login(email: string, password: string): Promise<void>
         + logout(): Promise<void>
         + getCurrentUser(): Observable<User>
-    }
+    end note
 }
 
-package "Data Layer (Model)" {
-    class "Transaction" as Transaction {
+package "Data Layer (Model)" as Model {
+    class Transaction {
         + id: string
         + userId: string
         + date: Date
@@ -467,33 +471,36 @@ package "Data Layer (Model)" {
     }
 }
 
-package "Routing Layer" {
-    component "AppRoutingModule" as Routing {
+package "Routing Layer" as Routing {
+    [AppRoutingModule]
+    note right
         + routes: Routes
         - canActivate: AuthGuard
-    }
+    end note
 }
 
-package "External Services" {
-    database "Firestore" as Firestore {
+package "External Services" as External {
+    database Firestore {
         collections:
         - users
         - transactions
         - categories
     }
-    
-    component "Firebase Auth" as FirebaseAuth {
+
+    [Firebase Auth] as FirebaseAuth
+    note right of FirebaseAuth
         + Authentication
         + User Management
-    }
+    end note
 }
 
-package "Angular Framework" {
-    component "AngularFire" as AngularFire {
+package "Angular Framework" as Framework {
+    [AngularFire]
+    note right
         + AngularFireModule
         + AngularFirestoreModule
         + AngularFireAuthModule
-    }
+    end note
 }
 
 ' Relationships
@@ -502,10 +509,10 @@ AddComp --> TxService : uses
 TxService --> Transaction : manages
 TxService --> Firestore : persists to
 TxService --> FirebaseAuth : authenticates
-AuthService --> FirebaseAuth : manages auth
-Routing --> AuthService : guards routes
-AngularFire --> Firestore : connects
-AngularFire --> FirebaseAuth : connects
+AuthSvc --> FirebaseAuth : manages auth
+Routing --> AuthSvc : guards routes
+Framework --> Firestore : connects
+Framework --> FirebaseAuth : connects
 @enduml
 ```
 
@@ -2360,6 +2367,4 @@ Week 6: Documentation & Finalization
 **Depok, January 2026**
 
 **Student**
-
 Erick Marchian
-NIM: 12345678
