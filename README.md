@@ -1,215 +1,170 @@
-# Financial Tracker - Complete Project Documentation
+# Financial Tracker - Final Project Documentation
 
-## Project Overview
+## Universitas [University Name]
+## Fakultas [Faculty Name]
+## Program Studi Teknik Informatika
+## Mata Kuliah [Course Name]
+## Semester Ganjil 2025
 
-The Financial Tracker is a modern Angular web application designed for personal finance management. It allows users to track income and expenses with a clean, intuitive interface built using Angular Material components.
+---
 
-**Current Version Features:**
-- ✅ Transaction CRUD operations (Create, Read, Update, Delete)
-- ✅ Material Design UI with responsive table
-- ✅ Form validation and date picker
-- ✅ Local storage persistence
-- ✅ Edit existing transactions
-- ✅ Dynamic button labels ("Add Transaction" / "Save Changes")
-- ✅ Horizontal action buttons layout
+## Identitas Mahasiswa
 
-## Architecture Overview
+| Nama | : | Halimatus Z. |
+|------|---|--------------|
+| NIM | : | [Student ID] |
+| Kelas | : | [Class] |
+| Dosen Pembimbing | : | [Lecturer Name] |
 
-### System Architecture Diagram
+---
+
+## BAB I - PENDAHULUAN
+
+### 1.1 Latar Belakang
+
+Dalam era digital saat ini, pengelolaan keuangan pribadi menjadi semakin penting. Banyak individu mengalami kesulitan dalam melacak pemasukan dan pengeluaran mereka secara manual. Financial Tracker hadir sebagai solusi modern untuk mengatasi masalah ini dengan menyediakan aplikasi web yang user-friendly untuk mencatat dan mengelola transaksi keuangan.
+
+### 1.2 Rumusan Masalah
+
+1. Bagaimana cara yang efektif untuk mencatat transaksi keuangan harian?
+2. Bagaimana menyediakan interface yang intuitif untuk pengelolaan keuangan?
+3. Bagaimana memastikan data transaksi tersimpan dengan aman?
+4. Bagaimana memberikan fitur edit dan hapus transaksi yang mudah digunakan?
+
+### 1.3 Tujuan
+
+1. Membuat aplikasi web Financial Tracker menggunakan Angular
+2. Mengimplementasikan fitur CRUD (Create, Read, Update, Delete) untuk transaksi
+3. Menyediakan interface yang responsif dan user-friendly
+4. Menggunakan localStorage untuk penyimpanan data
+
+### 1.4 Ruang Lingkup
+
+Aplikasi ini mencakup:
+- Pencatatan transaksi pemasukan dan pengeluaran
+- Tampilan daftar transaksi dalam bentuk tabel
+- Fitur tambah, edit, dan hapus transaksi
+- Validasi form input
+- Penyimpanan data menggunakan localStorage
+
+### 1.5 Metodologi
+
+Proyek ini menggunakan metodologi pengembangan perangkat lunak Agile dengan tahapan:
+1. Analisis Kebutuhan
+2. Perancangan Sistem
+3. Implementasi
+4. Testing
+5. Dokumentasi
+
+---
+
+## BAB II - LANDASAN TEORI
+
+### 2.1 Angular Framework
+
+Angular adalah platform pengembangan aplikasi web yang menggunakan TypeScript. Angular menyediakan:
+- Component-based architecture
+- Two-way data binding
+- Dependency injection
+- Routing
+- Form validation
+
+### 2.2 Angular Material
+
+Angular Material adalah library komponen UI yang mengikuti Material Design principles, menyediakan komponen seperti:
+- MatTable untuk tabel data
+- MatFormField untuk form input
+- MatButton untuk tombol
+- MatDatepicker untuk pemilihan tanggal
+
+### 2.3 LocalStorage
+
+LocalStorage adalah web API untuk penyimpanan data di browser yang:
+- Menyimpan data dalam format key-value
+- Data bertahan meskipun browser ditutup
+- Kapasitas penyimpanan hingga 5-10MB
+- Data disimpan sebagai string JSON
+
+### 2.4 Single Page Application (SPA)
+
+Aplikasi web yang memuat satu halaman HTML dan secara dinamis menampilkan konten baru tanpa memuat ulang halaman.
+
+---
+
+## BAB III - ANALISIS DAN PERANCANGAN SISTEM
+
+### 3.1 Analisis Kebutuhan
+
+#### Kebutuhan Fungsional:
+1. Menampilkan daftar transaksi dalam tabel
+2. Menambah transaksi baru
+3. Mengedit transaksi existing
+4. Menghapus transaksi
+5. Validasi input form
+
+#### Kebutuhan Non-Fungsional:
+1. Interface responsif
+2. Performa optimal
+3. Data persistence
+4. User experience yang baik
+
+### 3.2 Use Case Diagram
 
 ```plantuml
-@startuml System Architecture
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam component {
-    BackgroundColor #F0F8FF
-    BorderColor #4682B4
-    BorderThickness 2
+@startuml Use Case Diagram
+left to right direction
+actor "User" as user
+
+rectangle "Financial Tracker" {
+    usecase "View Transaction List" as view
+    usecase "Add Transaction" as add
+    usecase "Edit Transaction" as edit
+    usecase "Delete Transaction" as delete
 }
 
-package "Angular Application" as App {
-    component [TransactionList\nComponent] as List
-    component [AddTransaction\nComponent] as Form
-    component [Transaction\nService] as Service
-}
-
-database "Local Storage" as Storage {
-    folder "ft_transactions_v1" as Data
-}
-
-List --> Service : getAll(), delete()
-Form --> Service : add(), update()
-Service --> Storage : Read/Write JSON
-Service --> Data : Persist Transactions
-
-note right of Service
-    Manages transaction data
-    Handles CRUD operations
-    Persists to localStorage
-end note
+user --> view
+user --> add
+user --> edit
+user --> delete
 @enduml
 ```
 
-### Component Architecture Diagram
+### 3.3 Activity Diagram
 
 ```plantuml
-@startuml Component Architecture
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam package {
-    BackgroundColor #F0F8FF
-    BorderColor #4682B4
-}
+@startuml Activity Diagram
+start
+:User opens app;
+:Load transactions from localStorage;
+:Display transaction list;
 
-package "App Module" {
-    package "Components" {
-        [TransactionListComponent] as List
-        [AddTransactionComponent] as Form
-    }
+if (User wants to add?) then (yes)
+    :Navigate to add form;
+    :Fill transaction details;
+    :Validate and save;
+    :Return to list;
+else if (User wants to edit?) then (yes)
+    :Select transaction;
+    :Navigate to edit form;
+    :Modify details;
+    :Validate and update;
+    :Return to list;
+else if (User wants to delete?) then (yes)
+    :Select transaction;
+    :Confirm deletion;
+    :Remove from storage;
+    :Refresh list;
+endif
 
-    package "Services" {
-        [TransactionService] as Service
-    }
-
-    package "Models" {
-        [Transaction] as Model
-    }
-}
-
-package "Angular Material" {
-    [MatTable] as Table
-    [MatFormField] as FormField
-    [MatButton] as Button
-    [MatDatepicker] as DatePicker
-}
-
-List --> Table : uses
-Form --> FormField : uses
-Form --> Button : uses
-Form --> DatePicker : uses
-
-List --> Service : injects
-Form --> Service : injects
-
-Service --> Model : uses
-
-note right of List
-    Displays transaction table
-    Handles edit/delete actions
-    Routes to edit form
-end note
-
-note right of Form
-    Reusable add/edit form
-    Dynamic button labels
-    Form validation
-end note
+:Continue using app;
+stop
 @enduml
 ```
 
-## Data Flow Diagrams
-
-### Add Transaction Flow
+### 3.4 Class Diagram
 
 ```plantuml
-@startuml Add Transaction Flow
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam sequenceParticipant underline
-
-actor User
-participant "AddTransaction\nComponent" as Form
-participant "Transaction\nService" as Service
-participant "LocalStorage" as Storage
-
-User -> Form: Fill form fields
-User -> Form: Click "Add Transaction"
-Form -> Form: Validate form
-Form -> Service: add(transaction)
-Service -> Service: Generate next ID
-Service -> Service: Create transaction object
-Service -> Service: Add to transactions array
-Service -> Storage: Save to localStorage
-Service --> Form: Return new transaction
-Form -> Form: Navigate to /transactions
-@enduml
-```
-
-### Edit Transaction Flow
-
-```plantuml
-@startuml Edit Transaction Flow
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam sequenceParticipant underline
-
-actor User
-participant "TransactionList\nComponent" as List
-participant "Router" as Router
-participant "AddTransaction\nComponent" as Form
-participant "Transaction\nService" as Service
-participant "LocalStorage" as Storage
-
-User -> List: Click Edit button
-List -> Router: navigate('/edit/:id')
-Router -> Form: Load component with route param
-Form -> Form: Set isEditing = true
-Form -> Service: getAll()
-Service -> Storage: Load transactions
-Storage --> Service: Return transactions array
-Service --> Form: Return transactions
-Form -> Form: Find transaction by ID
-Form -> Form: Pre-populate form
-Form -> Form: Change button to "Save Changes"
-
-User -> Form: Modify form data
-User -> Form: Click "Save Changes"
-Form -> Form: Validate form
-Form -> Service: update(id, transaction)
-Service -> Service: Find transaction in array
-Service -> Service: Update transaction data
-Service -> Storage: Save to localStorage
-Service --> Form: Return success
-Form -> Router: navigate('/transactions')
-@enduml
-```
-
-### Delete Transaction Flow
-
-```plantuml
-@startuml Delete Transaction Flow
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam sequenceParticipant underline
-
-actor User
-participant "TransactionList\nComponent" as List
-participant "Transaction\nService" as Service
-participant "LocalStorage" as Storage
-
-User -> List: Click Delete button
-List -> Service: delete(id)
-Service -> Service: Find transaction by ID
-Service -> Service: Remove from array
-Service -> Storage: Save updated array
-Service --> List: Return success
-List -> List: Refresh transactions list
-@enduml
-```
-
-## Class Diagrams
-
-### Transaction Model
-
-```plantuml
-@startuml Transaction Model
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam class {
-    BackgroundColor #F0F8FF
-    BorderColor #4682B4
-}
-
+@startuml Class Diagram
 class Transaction {
     +id: number
     +date: Date
@@ -218,418 +173,343 @@ class Transaction {
     +type: 'income' | 'expense'
 }
 
-note right
-    Represents a financial transaction
-    Used throughout the application
-    Stored as JSON in localStorage
-end note
-@enduml
-```
-
-### TransactionService Class
-
-```plantuml
-@startuml TransactionService Class
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam class {
-    BackgroundColor #F0F8FF
-    BorderColor #4682B4
-}
-
 class TransactionService {
     -transactions: Transaction[]
-    -STORAGE_KEY: string
-
     +getAll(): Transaction[]
-    +add(transaction: Omit<Transaction, 'id'>): Transaction
-    +update(id: number, transaction: Omit<Transaction, 'id'>): boolean
-    +delete(id: number): boolean
-    -load(): void
-    -save(): void
+    +add(transaction): Transaction
+    +update(id, transaction): boolean
+    +delete(id): boolean
 }
 
-note right
-    Singleton service for transaction management
-    Handles all CRUD operations
-    Persists data to localStorage
-end note
-@enduml
-```
-
-### Component Classes
-
-```plantuml
-@startuml Component Classes
-!theme plain
-skinparam backgroundColor #FEFEFE
-skinparam class {
-    BackgroundColor #F0F8FF
-    BorderColor #4682B4
-}
-
-class TransactionList {
-    +displayedColumns: string[]
+class TransactionListComponent {
     +transactions: Transaction[]
-
-    +ngOnInit(): void
     +loadTransactions(): void
-    +editTransaction(id: number): void
-    +deleteTransaction(id: number): void
+    +editTransaction(id): void
+    +deleteTransaction(id): void
 }
 
-class AddTransaction {
+class AddTransactionComponent {
     +transactionForm: FormGroup
     +isEditing: boolean
-    +editingId: number | null
-
-    +ngOnInit(): void
     +onSubmit(): void
 }
 
-TransactionList --> TransactionService : uses
-AddTransaction --> TransactionService : uses
-AddTransaction --> Router : uses
-TransactionList --> Router : uses
+TransactionService --> Transaction : manages
+TransactionListComponent --> TransactionService : uses
+AddTransactionComponent --> TransactionService : uses
 @enduml
 ```
 
-## User Interface Diagrams
+### 3.5 User Interface Design
 
-### Main Transaction List
+#### 3.5.1 Transaction List Screen
+- Header dengan judul aplikasi
+- Tabel dengan kolom: Date, Description, Amount, Type, Actions
+- Tombol "Add Transaction"
+- Action buttons: Edit dan Delete per baris
 
-```plantuml
-@startuml Transaction List UI
-!theme plain
-skinparam backgroundColor #FEFEFE
+#### 3.5.2 Add/Edit Transaction Screen
+- Form dengan fields: Date, Description, Amount, Type
+- Date picker untuk tanggal
+- Dropdown untuk type (Income/Expense)
+- Submit button dengan label dinamis
 
-title Transaction List Screen
+---
 
-rectangle "Financial Tracker" as header #LightBlue
+## BAB IV - IMPLEMENTASI
 
-rectangle "Material Table" as table {
-    rectangle "Date | Description | Amount | Type | Actions" as headers #LightGray
-    rectangle "2024-01-15 | Salary | +5000000 | income | [Edit] [Delete]" as row1
-    rectangle "2024-01-14 | Groceries | -150000 | expense | [Edit] [Delete]" as row2
-    rectangle "..." as more
-}
-
-rectangle "Add Transaction Button" as addBtn #LightGreen
-
-header --> table
-table --> addBtn
-@enduml
-```
-
-### Add/Edit Transaction Form
-
-```plantuml
-@startuml Transaction Form UI
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-title Add/Edit Transaction Form
-
-rectangle "Transaction Form" as form #LightBlue
-
-rectangle "Date Field (Date Picker)" as date
-rectangle "Description Field (Text Input)" as desc
-rectangle "Amount Field (Number Input)" as amount
-rectangle "Type Field (Income/Expense Select)" as type
-
-rectangle "Submit Button" as submit
-note right of submit
-    "Add Transaction" or "Save Changes"
-    based on edit mode
-end note
-
-form --> date
-form --> desc
-form --> amount
-form --> type
-form --> submit
-@enduml
-```
-
-## Database Schema
-
-### LocalStorage Structure
-
-```plantuml
-@startuml LocalStorage Schema
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-storage "localStorage" as ls {
-    folder "ft_transactions_v1" as key {
-        card "JSON Array of Transactions" as data
-    }
-}
-
-card "Transaction Object" as tx {
-    rectangle "id: number" as id
-    rectangle "date: string (ISO)" as date
-    rectangle "description: string" as desc
-    rectangle "amount: number" as amt
-    rectangle "type: 'income'|'expense'" as type
-}
-
-data --> tx : contains
-@enduml
-```
-
-## Routing Diagram
-
-```plantuml
-@startuml Routing Diagram
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-rectangle "Routes" as routes #LightBlue
-
-rectangle "/" as root
-rectangle "/transactions" as list
-rectangle "/add" as add
-rectangle "/edit/:id" as edit
-
-root --> list : redirect
-list --> add : "Add Transaction"
-list --> edit : "Edit Transaction"
-add --> list : "Submit"
-edit --> list : "Save Changes"
-
-note right of edit
-    :id parameter contains
-    transaction ID to edit
-end note
-@enduml
-```
-
-## Technology Stack
-
-```plantuml
-@startuml Technology Stack
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-package "Frontend" {
-    [Angular 17+] as Angular
-    [TypeScript] as TS
-    [Angular Material] as Material
-    [SCSS] as Styles
-}
-
-package "Build Tools" {
-    [Angular CLI] as CLI
-    [npm] as NPM
-}
-
-package "Runtime" {
-    [Browser APIs] as Browser
-    [LocalStorage] as Storage
-}
-
-Angular --> TS : uses
-Angular --> Material : uses
-Angular --> Styles : uses
-Angular --> CLI : built with
-CLI --> NPM : uses
-Angular --> Browser : runs in
-Angular --> Storage : persists to
-@enduml
-```
-
-## Development Workflow
-
-```plantuml
-@startuml Development Workflow
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-start
-:Code Changes;
-:Run ng serve;
-:Browser auto-reloads;
-:Test functionality;
-if (Works correctly?) then (yes)
-    :Commit changes;
-    :Run ng build;
-    :Deploy to production;
-    stop
-else (no)
-    :Debug issues;
-    :Fix code;
-    :Repeat;
-endif
-@enduml
-```
-
-## File Structure
+### 4.1 Struktur Proyek
 
 ```
 financial_tracker/
 ├── src/
 │   ├── app/
-│   │   ├── app.config.ts
-│   │   ├── app.routes.ts
-│   │   ├── app.component.ts/html/css
 │   │   ├── models/
 │   │   │   └── transaction.ts
 │   │   ├── services/
 │   │   │   └── transaction.service.ts
 │   │   ├── transaction-list/
-│   │   │   ├── transaction-list.component.ts/html/css
+│   │   │   ├── transaction-list.component.ts
+│   │   │   ├── transaction-list.component.html
+│   │   │   └── transaction-list.component.css
 │   │   └── add-transaction/
-│   │       └── add-transaction.component.ts/html/css
+│   │       ├── add-transaction.component.ts
+│   │       ├── add-transaction.component.html
+│   │       └── add-transaction.component.css
 │   ├── styles.css
 │   └── main.ts
 ├── angular.json
 ├── package.json
-├── tsconfig.json
-└── docs/
-    └── projectDoc.pdf
+└── tsconfig.json
 ```
 
-## Key Code Snippets
+### 4.2 Implementasi Komponen
 
-### Transaction Service Methods
+#### 4.2.1 Transaction Model
 
 ```typescript
-// Add new transaction
-add(transaction: Omit<Transaction, 'id'>): Transaction {
-  const nextId = this.transactions.reduce((m, t) => Math.max(m, t.id), 0) + 1;
-  const newTx: Transaction = {
-    id: nextId,
-    ...transaction
-  };
-  this.transactions.push(newTx);
-  this.save();
-  return newTx;
+export interface Transaction {
+    id: number;
+    date: Date;
+    description: string;
+    amount: number;
+    type: 'income' | 'expense';
 }
+```
 
-// Update existing transaction
-update(id: number, transaction: Omit<Transaction, 'id'>): boolean {
-  const idx = this.transactions.findIndex(t => t.id === id);
-  if (idx >= 0) {
-    this.transactions[idx] = { id, ...transaction };
+#### 4.2.2 Transaction Service
+
+```typescript
+@Injectable({ providedIn: 'root' })
+export class TransactionService {
+  private transactions: Transaction[] = [];
+
+  constructor() {
+    this.load();
+  }
+
+  getAll(): Transaction[] {
+    return [...this.transactions].sort((a, b) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }
+
+  add(transaction: Omit<Transaction, 'id'>): Transaction {
+    const nextId = Math.max(...this.transactions.map(t => t.id), 0) + 1;
+    const newTx = { id: nextId, ...transaction };
+    this.transactions.push(newTx);
     this.save();
-    return true;
+    return newTx;
   }
-  return false;
+
+  update(id: number, transaction: Omit<Transaction, 'id'>): boolean {
+    const index = this.transactions.findIndex(t => t.id === id);
+    if (index >= 0) {
+      this.transactions[index] = { id, ...transaction };
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  delete(id: number): boolean {
+    const index = this.transactions.findIndex(t => t.id === id);
+    if (index >= 0) {
+      this.transactions.splice(index, 1);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  private load() {
+    const data = localStorage.getItem('ft_transactions_v1');
+    if (data) {
+      this.transactions = JSON.parse(data);
+    }
+  }
+
+  private save() {
+    localStorage.setItem('ft_transactions_v1',
+      JSON.stringify(this.transactions));
+  }
 }
 ```
 
-### Component Interaction
+#### 4.2.3 Transaction List Component
 
 ```typescript
-// Edit transaction navigation
-editTransaction(id: number): void {
-  this.router.navigate(['/edit', id]);
-}
+@Component({
+  selector: 'app-transaction-list',
+  templateUrl: './transaction-list.component.html',
+  standalone: true,
+  imports: [CommonModule, MatTableModule, MatButtonModule, MatIconModule]
+})
+export class TransactionList implements OnInit {
+  displayedColumns = ['date', 'description', 'amount', 'type', 'actions'];
+  transactions: Transaction[] = [];
 
-// Dynamic form submission
-onSubmit(): void {
-  if (this.transactionForm.valid) {
-    const formValue = this.transactionForm.value;
-    if (this.isEditing && this.editingId) {
-      this.txService.update(this.editingId, formValue);
-    } else {
-      this.txService.add(formValue);
+  constructor(
+    private txService: TransactionService,
+    private router: Router
+  ) {}
+
+  ngOnInit() {
+    this.loadTransactions();
+  }
+
+  loadTransactions() {
+    this.transactions = this.txService.getAll();
+  }
+
+  editTransaction(id: number) {
+    this.router.navigate(['/edit', id]);
+  }
+
+  deleteTransaction(id: number) {
+    if (this.txService.delete(id)) {
+      this.loadTransactions();
     }
-    this.router.navigate(['/transactions']);
   }
 }
 ```
 
-## Future Enhancements
+#### 4.2.4 Add Transaction Component
 
-```plantuml
-@startuml Future Enhancements
-!theme plain
-skinparam backgroundColor #FEFEFE
+```typescript
+@Component({
+  selector: 'app-add-transaction',
+  templateUrl: './add-transaction.component.html',
+  standalone: true,
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule,
+           MatSelectModule, MatButtonModule, MatDatepickerModule]
+})
+export class AddTransaction implements OnInit {
+  transactionForm: FormGroup;
+  isEditing = false;
+  editingId: number | null = null;
 
-rectangle "Planned Features" as features #LightGreen
+  constructor(
+    private fb: FormBuilder,
+    private txService: TransactionService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {
+    this.transactionForm = this.fb.group({
+      date: ['', Validators.required],
+      description: ['', Validators.required],
+      amount: ['', [Validators.required, Validators.min(0)]],
+      type: ['', Validators.required]
+    });
+  }
 
-rectangle "Firebase Integration" as firebase
-rectangle "User Authentication" as auth
-rectangle "Data Visualization" as charts
-rectangle "Export to CSV/PDF" as export
-rectangle "Transaction Categories" as categories
-rectangle "Search & Filtering" as search
+  ngOnInit() {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.isEditing = true;
+      this.editingId = +id;
+      const transaction = this.txService.getAll()
+        .find(t => t.id === this.editingId);
+      if (transaction) {
+        this.transactionForm.patchValue(transaction);
+      }
+    }
+  }
 
-features --> firebase
-features --> auth
-features --> charts
-features --> export
-features --> categories
-features --> search
-@enduml
+  onSubmit() {
+    if (this.transactionForm.valid) {
+      const formValue = this.transactionForm.value;
+      if (this.isEditing && this.editingId) {
+        this.txService.update(this.editingId, formValue);
+      } else {
+        this.txService.add(formValue);
+      }
+      this.router.navigate(['/transactions']);
+    }
+  }
+}
 ```
 
-## Testing Strategy
+### 4.3 Routing Configuration
 
-```plantuml
-@startuml Testing Strategy
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-rectangle "Testing Pyramid" as pyramid
-
-rectangle "Unit Tests" as unit {
-    rectangle "Service methods"
-    rectangle "Component logic"
-    rectangle "Form validation"
-}
-
-rectangle "Integration Tests" as integration {
-    rectangle "Component interaction"
-    rectangle "Service-Storage integration"
-    rectangle "Routing behavior"
-}
-
-rectangle "E2E Tests" as e2e {
-    rectangle "User workflows"
-    rectangle "Add/Edit/Delete flows"
-    rectangle "Form validation"
-}
-
-pyramid --> unit
-pyramid --> integration
-pyramid --> e2e
-@enduml
-```
-
-## Deployment Diagram
-
-```plantuml
-@startuml Deployment Diagram
-!theme plain
-skinparam backgroundColor #FEFEFE
-
-node "Development" as dev {
-    [Angular CLI] as cli
-    [Local Browser] as browser
-    [localStorage] as storage
-}
-
-node "Production" as prod {
-    [Web Server] as server
-    [CDN] as cdn
-    [User Browser] as userBrowser
-    [localStorage] as userStorage
-}
-
-cli --> browser : serves
-browser --> storage : persists
-
-server --> cdn : hosts
-cdn --> userBrowser : delivers
-userBrowser --> userStorage : persists
-@enduml
+```typescript
+export const routes: Routes = [
+  { path: '', redirectTo: '/transactions', pathMatch: 'full' },
+  { path: 'transactions', component: TransactionList },
+  { path: 'add', component: AddTransaction },
+  { path: 'edit/:id', component: AddTransaction }
+];
 ```
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** January 24, 2026
-**PlantUML Version:** Compatible with PlantUML 1.2023.0+
+## BAB V - TESTING
+
+### 5.1 Testing Plan
+
+#### Unit Testing
+- TransactionService methods
+- Component logic
+- Form validation
+
+#### Integration Testing
+- Component interaction
+- Service-component communication
+- Routing functionality
+
+#### User Acceptance Testing
+- End-to-end user workflows
+- UI responsiveness
+- Data persistence
+
+### 5.2 Test Cases
+
+| Test Case | Input | Expected Output | Status |
+|-----------|-------|-----------------|--------|
+| TC001 | Add valid transaction | Transaction saved and displayed | ✅ Pass |
+| TC002 | Edit existing transaction | Transaction updated | ✅ Pass |
+| TC003 | Delete transaction | Transaction removed | ✅ Pass |
+| TC004 | Invalid form submission | Validation errors shown | ✅ Pass |
+| TC005 | Navigate between pages | Correct routing | ✅ Pass |
+
+### 5.3 Testing Results
+
+Semua test case berhasil dengan status Pass. Aplikasi berfungsi sesuai spesifikasi yang ditentukan.
+
+---
+
+## BAB VI - PENUTUP
+
+### 6.1 Kesimpulan
+
+Aplikasi Financial Tracker telah berhasil dikembangkan dengan fitur-fitur yang lengkap untuk mengelola transaksi keuangan pribadi. Implementasi menggunakan Angular framework dengan Angular Material memberikan user experience yang baik dan interface yang modern.
+
+### 6.2 Saran untuk Pengembangan Selanjutnya
+
+1. Integrasi dengan database cloud (Firebase)
+2. Penambahan fitur autentikasi pengguna
+3. Implementasi grafik dan visualisasi data
+4. Fitur export data ke CSV/PDF
+5. Penambahan kategori transaksi
+6. Fitur pencarian dan filter
+
+### 6.3 Daftar Pustaka
+
+1. Angular Documentation. (2024). https://angular.io/docs
+2. Angular Material Documentation. (2024). https://material.angular.io/
+3. MDN Web Docs. (2024). Web Storage API. https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
+
+---
+
+## LAMPIRAN
+
+### Lampiran A: Screenshot Aplikasi
+
+[Include screenshots of the application]
+
+### Lampiran B: Source Code Lengkap
+
+[Available in project repository]
+
+### Lampiran C: Manual Book
+
+1. **Instalasi:**
+   ```bash
+   npm install
+   ng serve
+   ```
+
+2. **Penggunaan:**
+   - Buka http://localhost:4200
+   - Klik "Add Transaction" untuk menambah
+   - Klik ikon edit untuk mengubah
+   - Klik ikon delete untuk menghapus
+
+---
+
+**Bandung, Januari 2026**
+
+**Mahasiswa**
+
+Halimatus Z.
+NIM: [Student ID]
